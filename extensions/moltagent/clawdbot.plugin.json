@@ -1,0 +1,44 @@
+{
+  "id": "moltagent",
+  "name": "MoltAgent",
+  "kind": "infra",
+  "description": "Provision and manage autonomous MoltBot agents on dedicated VPS instances. Agents communicate back to a control plane (e.g. LobeHub) for orchestration.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "controlPlaneUrl": {
+        "type": "string",
+        "description": "WebSocket URL of the control plane (LobeHub) this agent reports to"
+      },
+      "controlPlaneToken": {
+        "type": "string",
+        "description": "Bearer token for authenticating with the control plane"
+      },
+      "provider": {
+        "type": "string",
+        "description": "VPS provider to use for provisioning (hetzner, docker-local)"
+      },
+      "hetznerApiToken": {
+        "type": "string",
+        "description": "Hetzner Cloud API token for VPS provisioning"
+      },
+      "defaultServerType": {
+        "type": "string",
+        "description": "Default Hetzner server type (e.g. cpx21, cpx31)"
+      },
+      "defaultRegion": {
+        "type": "string",
+        "description": "Default region for provisioning (e.g. nbg1, fsn1, hel1)"
+      },
+      "approvalEmail": {
+        "type": "string",
+        "description": "Email address authorized to approve spend/action requests"
+      },
+      "maxSpendPerDay": {
+        "type": "number",
+        "description": "Maximum daily spend in USD before requiring manual approval"
+      }
+    }
+  }
+}
