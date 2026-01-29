@@ -3,17 +3,91 @@
 - GitHub issues/comments/PR comments: use literal multiline strings or `-F - <<'EOF'` (or $'...') for real newlines; never embed "\\n".
 
 ## Project Structure & Module Organization
-- Source code: `src/` (CLI wiring in `src/cli`, commands in `src/commands`, web provider in `src/provider-web.ts`, infra in `src/infra`, media pipeline in `src/media`).
-- Tests: colocated `*.test.ts`.
-- Docs: `docs/` (images, queue, Pi config). Built output lives in `dist/`.
-- Plugins/extensions: live under `extensions/*` (workspace packages). Keep plugin-only deps in the extension `package.json`; do not add them to the root `package.json` unless core uses them.
-- Plugins: install runs `npm install --omit=dev` in plugin dir; runtime deps must live in `dependencies`. Avoid `workspace:*` in `dependencies` (npm install breaks); put `moltbot` in `devDependencies` or `peerDependencies` instead (runtime resolves `clawdbot/plugin-sdk` via jiti alias).
+
+### Workspace Layout (pnpm monorepo)
+Defined in `pnpm-workspace.yaml` with four workspace roots:
+- `.` (root) - Main CLI package (`moltbot`)
+- `ui` - Web UI (React/Vite)
+- `packages/*` - Shared workspace packages (`packages/clawdbot` plugin SDK)
+- `extensions/*` - Channel and utility plugins (29 extensions)
+
+### Top-Level Directories
+- `src/` - TypeScript source code (CLI, gateway, agents, channels, infra, media)
+- `extensions/` - Plugin extensions (channel integrations, auth, memory, diagnostics)
+- `apps/` - Native applications (iOS, Android, macOS, shared Swift kit)
+- `ui/` - Web UI (React + Vite + Lit components)
+- `docs/` - Mintlify documentation (hosted at docs.molt.bot)
+- `skills/` - AI agent skill definitions (52 skill directories)
+- `scripts/` - Build, test, release, and utility scripts (65+)
+- `packages/` - Workspace packages (`clawdbot` plugin SDK)
+- `Swabble/` - Shared Swift package for iOS/macOS (SwabbleCore, SwabbleKit)
+- `vendor/` - Vendored specs (A2UI specification v0.8/v0.9)
+- `test/` - E2E and integration tests with shared helpers/mocks/fixtures
+- `assets/` - Static assets (Chrome extension, DMG backgrounds, avatars)
+- `dist/` - Built output (tsc)
+- `.github/` - CI workflows, issue templates, labeler config
+- `.agent/` - Agent-specific configuration
+- `git-hooks/` - Git hook scripts
+
+### Source Code (`src/`)
+- **CLI wiring:** `src/cli/` (argv parsing, dependency injection, progress UI, browser tools)
+- **Commands:** `src/commands/` (agent, auth, channels, config, gateway, hooks, memory, models, onboarding, status)
+- **Gateway:** `src/gateway/` (HTTP server, WebSocket, session management, chat, cron, hooks, protocol)
+- **Agents:** `src/agents/` (Pi embedded runner, bash tools, sandbox, skills, system prompts, subagents, tool schemas)
+- **Infrastructure:** `src/infra/` (Bonjour discovery, Tailscale, device pairing, exec approvals, heartbeat, TLS, updates)
+- **Media:** `src/media/` (audio, images, MIME, fetching, storage), `src/media-understanding/`, `src/link-understanding/`
+- **Configuration:** `src/config/` (Zod schema, I/O, legacy migrations, agent defaults)
+- **Hooks:** `src/hooks/` (bundled hooks: boot-md, command-logger, session-memory, soul-evil, Gmail)
+- **Plugins:** `src/plugins/` (loader, discovery, registry, manifest, installation)
+- **Plugin SDK:** `src/plugin-sdk/` (API for extensions)
+- **TUI:** `src/tui/` (terminal UI components)
+- **Browser:** `src/browser/` (Chrome detection, Playwright, CDP, extension relay)
+- **Channels shared:** `src/channels/` (registry, allowlists, mention-gating, command-gating, dock, plugins)
+- **Routing:** `src/routing/` (message routing logic)
+- **Terminal:** `src/terminal/` (palette, table formatting, ANSI-safe output)
+- **Other:** `src/auto-reply/`, `src/acp/`, `src/canvas-host/`, `src/cron/`, `src/daemon/`, `src/macos/`, `src/memory/`, `src/pairing/`, `src/process/`, `src/providers/`, `src/security/`, `src/sessions/`, `src/tts/`, `src/wizard/`
+- **Entry points:** `src/entry.ts` (binary), `src/index.ts` (ESM exports), `src/runtime.ts`, `src/globals.ts`
+
+### Channel Implementation Pattern
+Each messaging channel follows a consistent module structure:
+- `accounts.ts` - Account/token management
+- `bot.ts` or `client.ts` - Main channel client
+- `monitor.ts` - Incoming message handler
+- `send.ts` - Outbound message sending
+- `targets.ts` - Address/chat resolution
+- `probe.ts` - Health check
+- `index.ts` - Module exports
+
+Core channel code:
+- `src/telegram/`, `src/discord/`, `src/slack/`, `src/signal/`, `src/imessage/`, `src/web/` (WhatsApp Web via Baileys), `src/whatsapp/`, `src/line/`
+- Shared: `src/channels/`, `src/routing/`
+- Channel docs: `docs/channels/`
+
+### Extensions (29 plugins in `extensions/`)
+**Channel extensions:** `bluebubbles`, `discord`, `googlechat`, `imessage`, `line`, `matrix`, `mattermost`, `msteams`, `nextcloud-talk`, `nostr`, `signal`, `slack`, `telegram`, `tlon`, `twitch`, `voice-call`, `whatsapp`, `zalo`, `zalouser`
+**Auth extensions:** `copilot-proxy`, `google-antigravity-auth`, `google-gemini-cli-auth`, `qwen-portal-auth`
+**Memory extensions:** `memory-core`, `memory-lancedb`
+**Utility extensions:** `diagnostics-otel`, `llm-task`, `lobster`, `open-prose`
+
+Plugin rules:
+- Keep plugin-only deps in the extension `package.json`; do not add them to the root `package.json` unless core uses them.
+- Install runs `npm install --omit=dev` in plugin dir; runtime deps must live in `dependencies`.
+- Avoid `workspace:*` in `dependencies` (npm install breaks); put `moltbot` in `devDependencies` or `peerDependencies` instead (runtime resolves `clawdbot/plugin-sdk` via jiti alias).
+
+### Native Apps (`apps/`)
+- `apps/ios/` - iOS app (Swift, XcodeGen `project.yml`, Fastlane)
+- `apps/android/` - Android app (Kotlin, Gradle)
+- `apps/macos/` - macOS menubar app (Swift, SPM `Package.swift`)
+- `apps/shared/` - Shared Swift framework (`MoltbotKit`)
+
+### Skills (`skills/`)
+52 AI agent skill directories including: `1password`, `apple-notes`, `apple-reminders`, `bluebubbles`, `camsnap`, `canvas`, `coding-agent`, `discord`, `gemini`, `github`, `notion`, `obsidian`, `openai-image-gen`, `openai-whisper`, `peekaboo`, `slack`, `spotify-player`, `tmux`, `trello`, `voice-call`, `weather`, and more.
+
+### Other
 - Installers served from `https://molt.bot/*`: live in the sibling repo `../molt.bot` (`public/install.sh`, `public/install-cli.sh`, `public/install.ps1`).
 - Messaging channels: always consider **all** built-in + extension channels when refactoring shared logic (routing, allowlists, pairing, command gating, onboarding, docs).
-  - Core channel docs: `docs/channels/`
-  - Core channel code: `src/telegram`, `src/discord`, `src/slack`, `src/signal`, `src/imessage`, `src/web` (WhatsApp web), `src/channels`, `src/routing`
-  - Extensions (channel plugins): `extensions/*` (e.g. `extensions/msteams`, `extensions/matrix`, `extensions/zalo`, `extensions/zalouser`, `extensions/voice-call`)
 - When adding channels/extensions/apps/docs, review `.github/labeler.yml` for label coverage.
+- Tests: colocated `*.test.ts` (unit), `*.e2e.test.ts` (E2E), `*.live.test.ts` (live with real keys). Shared test infra in `test/` (helpers, mocks, fixtures).
 
 ## Docs Linking (Mintlify)
 - Docs are hosted on Mintlify (docs.molt.bot).
@@ -36,7 +110,8 @@
 - Verify: `moltbot channels status --probe`, `ss -ltnp | rg 18789`, `tail -n 120 /tmp/moltbot-gateway.log`.
 
 ## Build, Test, and Development Commands
-- Runtime baseline: Node **22+** (keep Node + Bun paths working).
+- Runtime baseline: Node **22+** (keep Node + Bun paths working). Package manager: **pnpm 10.23+**.
+- Toolchain: TypeScript 5.9, Vitest 4.0, Oxlint, Oxfmt.
 - Install deps: `pnpm install`
 - Pre-commit hooks: `prek install` (runs same checks as CI)
 - Also supported: `bun install` (keep `pnpm-lock.yaml` + Bun patching in sync when touching deps/patches).
@@ -47,14 +122,26 @@
 - Type-check/build: `pnpm build` (tsc)
 - Lint/format: `pnpm lint` (oxlint), `pnpm format` (oxfmt)
 - Tests: `pnpm test` (vitest); coverage: `pnpm test:coverage`
+- Mobile: `pnpm ios:build`, `pnpm ios:run`, `pnpm android:run`, `pnpm android:assemble`
+- UI: `pnpm ui:dev` (Vite dev server), `pnpm ui:build`
+- Gateway dev: `pnpm gateway:dev`, `pnpm gateway:watch`
+- TUI dev: `pnpm tui:dev`
+- Docs: `pnpm docs:dev`, `pnpm docs:build`
+- Protocol gen: `pnpm protocol:gen`, `pnpm protocol:gen:swift`
+- Plugin sync: `pnpm plugins:sync`
+- Release check: `pnpm release:check`
+- LOC check: `pnpm check:loc`
 
 ## Coding Style & Naming Conventions
-- Language: TypeScript (ESM). Prefer strict typing; avoid `any`.
+- Language: TypeScript (ESM, target ES2022, module NodeNext, strict mode).
 - Formatting/linting via Oxlint and Oxfmt; run `pnpm lint` before commits.
+- Swift code: use SwiftFormat (`.swiftformat`) and SwiftLint (`.swiftlint.yml`).
 - Add brief code comments for tricky or non-obvious logic.
-- Keep files concise; extract helpers instead of “V2” copies. Use existing patterns for CLI options and dependency injection via `createDefaultDeps`.
+- Keep files concise; extract helpers instead of "V2" copies. Use existing patterns for CLI options and dependency injection via `createDefaultDeps`.
 - Aim to keep files under ~700 LOC; guideline only (not a hard guardrail). Split/refactor when it improves clarity or testability.
 - Naming: use **Moltbot** for product/app/docs headings; use `moltbot` for CLI command, package/binary, paths, and config keys.
+- Config schema: defined in `src/config/schema.ts` using Zod; split into `zod-schema-core.ts`, `zod-schema-providers.ts`, `zod-schema-agents.ts`.
+- Plugin SDK alias: `clawdbot/plugin-sdk` resolves to `src/plugin-sdk/index.ts` via Vitest alias and jiti at runtime.
 
 ## Release Channels (Naming)
 - stable: tagged releases only (e.g. `vYYYY.M.D`), npm dist-tag `latest`.
@@ -62,14 +149,27 @@
 - dev: moving head on `main` (no tag; git checkout main).
 
 ## Testing Guidelines
-- Framework: Vitest with V8 coverage thresholds (70% lines/branches/functions/statements).
-- Naming: match source names with `*.test.ts`; e2e in `*.e2e.test.ts`.
+- Framework: Vitest 4.0 with V8 coverage. Test pool: `forks` (isolated processes). Timeout: 120s (hooks: 180s on Windows).
+- Coverage thresholds: 70% lines/functions/statements, 55% branches.
+- Workers: 3-16 local (auto-calculated from CPU), 2-3 in CI.
+- Naming: match source names with `*.test.ts`; e2e in `*.e2e.test.ts`; live in `*.live.test.ts`.
 - Run `pnpm test` (or `pnpm test:coverage`) before pushing when you touch logic.
 - Do not set test workers above 16; tried already.
 - Live tests (real keys): `CLAWDBOT_LIVE_TEST=1 pnpm test:live` (Moltbot-only) or `LIVE=1 pnpm test:live` (includes provider live tests). Docker: `pnpm test:docker:live-models`, `pnpm test:docker:live-gateway`. Onboarding Docker E2E: `pnpm test:docker:onboard`.
-- Full kit + what’s covered: `docs/testing.md`.
+- Docker test variants: `pnpm test:docker:onboard`, `pnpm test:docker:gateway-network`, `pnpm test:docker:qr`, `pnpm test:docker:doctor-switch`, `pnpm test:docker:plugins`, `pnpm test:docker:cleanup`, `pnpm test:docker:all`.
+- Install smoke tests: `pnpm test:install:e2e`, `pnpm test:install:smoke`.
+- Full kit + what's covered: `docs/testing.md`.
 - Pure test additions/fixes generally do **not** need a changelog entry unless they alter user-facing behavior or the user asks for one.
 - Mobile: before using a simulator, check for connected real devices (iOS + Android) and prefer them when available.
+
+## CI/CD (`.github/workflows/`)
+- `ci.yml` - Main CI pipeline (lint, build, test, coverage, Docker checks).
+- `docker-release.yml` - Docker image release.
+- `install-smoke.yml` - Installation smoke tests.
+- `auto-response.yml` - Auto-response automation for issues/PRs.
+- `labeler.yml` - Automatic PR labeling.
+- `workflow-sanity.yml` - Workflow validation.
+- Dependabot configured in `.github/dependabot.yml`.
 
 ## Commit & Pull Request Guidelines
 - Create commits with `scripts/committer "<msg>" <file...>`; avoid manual `git add`/`git commit` so staging stays scoped.
@@ -95,6 +195,13 @@
 ### PR Workflow (Review vs Land)
 - **Review mode (PR link only):** read `gh pr view/diff`; **do not** switch branches; **do not** change code.
 - **Landing mode:** create an integration branch from `main`, bring in PR commits (**prefer rebase** for linear history; **merge allowed** when complexity/conflicts make it safer), apply fixes, add changelog (+ thanks + PR #), run full gate **locally before committing** (`pnpm lint && pnpm build && pnpm test`), commit, merge back to `main`, then `git switch main` (never stay on a topic branch after landing). Important: contributor needs to be in git graph after this!
+
+## Deployment
+- Docker: `Dockerfile` (main), `Dockerfile.sandbox`, `Dockerfile.sandbox-browser`; orchestration via `docker-compose.yml`.
+- Fly.io: `fly.toml`, `fly.private.toml` for deployment config.
+- Render: `render.yaml` for Render deployment.
+- macOS: Sparkle updater feed at `appcast.xml`; notarization via `scripts/notarize-mac-artifact.sh`.
+- Installers: `https://molt.bot/install.sh` (sibling repo `../molt.bot`).
 
 ## Security & Configuration Tips
 - Web provider stores creds at `~/.clawdbot/credentials/`; rerun `moltbot login` if logged out.
@@ -153,6 +260,17 @@
   - launchd PATH is minimal; ensure the app’s launch agent PATH includes standard system paths plus your pnpm bin (typically `$HOME/Library/pnpm`) so `pnpm`/`moltbot` binaries resolve when invoked via `moltbot-mac`.
 - For manual `moltbot message send` messages that include `!`, use the heredoc pattern noted below to avoid the Bash tool’s escaping.
 - Release guardrails: do not change version numbers without operator’s explicit consent; always ask permission before running any npm publish/release step.
+
+## Key Dependencies
+- **Messaging SDKs:** `grammy` (Telegram), `@slack/bolt` (Slack), `@whiskeysockets/baileys` (WhatsApp Web), `@line/bot-sdk` (LINE)
+- **AI/Agent:** `@mariozechner/pi-agent-core`, `@mariozechner/pi-ai`, `@agentclientprotocol/sdk`
+- **HTTP:** `express`, `hono`, `ws`, `undici`
+- **Media:** `sharp` (images), `pdfjs-dist` (PDF), `playwright-core` (browser)
+- **Validation:** `zod` (config + tool schemas), `@sinclair/typebox` (tool input schemas)
+- **CLI:** `commander` (argv), `chalk` (colors), `@clack/prompts` (interactive)
+- **Build:** `typescript` (tsc), `rolldown` (bundling), `wireit` (task orchestration)
+- **Optional native:** `@napi-rs/canvas`, `node-llama-cpp`, `@lydell/node-pty`
+- **pnpm overrides:** `@sinclair/typebox@0.34.47`, `hono@4.11.4`, `tar@7.5.4` (pinned for compatibility)
 
 ## NPM + 1Password (publish/verify)
 - Use the 1password skill; all `op` commands must run inside a fresh tmux session.
