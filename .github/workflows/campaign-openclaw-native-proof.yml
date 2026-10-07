@@ -176,7 +176,8 @@ jobs:
               grep -F 'accepts an ACP qualified object primary' "$RUNNER_TEMP/native-proof/baseline.log"
               grep -F 'accepts an ACP string primary without native provider registration' "$RUNNER_TEMP/native-proof/baseline.log"
               grep -F 'writes the authored ACP primary while preserving the native defaults' "$RUNNER_TEMP/native-proof/baseline.log"
-              grep -F 'Unknown model:' "$RUNNER_TEMP/native-proof/baseline.log"
+              # Config dry-run intentionally redacts dependency diagnostics.
+              grep -F 'Unable to resolve authored model reference' "$RUNNER_TEMP/native-proof/baseline.log"
               ;;
             preview-links-baseline|preview-links)
               grep -F 'flattens Markdown nested link label before bounding a preview' "$RUNNER_TEMP/native-proof/baseline.log"
