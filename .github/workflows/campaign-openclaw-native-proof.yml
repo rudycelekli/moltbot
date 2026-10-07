@@ -23,6 +23,8 @@ on:
           - feishu-streaming
           - acp-model-baseline
           - acp-model
+          - preview-links-baseline
+          - preview-links
 
 permissions:
   contents: read
@@ -35,12 +37,12 @@ jobs:
       CI: "true"
       PROOF_LANE: ${{ inputs.lane }}
       EXPECTED_HEAD: ${{ inputs.candidate }}
-      PROOF_BASE: ${{ startsWith(inputs.lane, 'acp-model') && '96ccec4a1385f1554579d60dc058fb82419dbc79' || '8242407539b5d783b8fb8793f54d7092b4bbbd5a' }}
+      PROOF_BASE: ${{ (startsWith(inputs.lane, 'acp-model') || startsWith(inputs.lane, 'preview-links')) && '96ccec4a1385f1554579d60dc058fb82419dbc79' || '8242407539b5d783b8fb8793f54d7092b4bbbd5a' }}
     steps:
       - name: Validate immutable target
         run: |
           [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
-          case "$PROOF_LANE" in grapheme|grapheme-checks|images-baseline|images|feishu-baseline|feishu|feishu-streaming-baseline|feishu-streaming|acp-model-baseline|acp-model) ;; *) exit 2 ;; esac
+          case "$PROOF_LANE" in grapheme|grapheme-checks|images-baseline|images|feishu-baseline|feishu|feishu-streaming-baseline|feishu-streaming|acp-model-baseline|acp-model|preview-links-baseline|preview-links) ;; *) exit 2 ;; esac
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: rudycelekli/moltbot
@@ -93,6 +95,10 @@ jobs:
               production=(src/cli/config-model-validation.ts)
               tests=(src/cli/config-cli.acp-model.process.test.ts)
               ;;
+            preview-links-baseline|preview-links)
+              production=(packages/normalization-core/src/markdown-plain-text.ts)
+              tests=(packages/normalization-core/src/markdown-plain-text.test.ts src/gateway/session-display-projection.test.ts)
+              ;;
           esac
           mkdir -p "$RUNNER_TEMP/native-proof/production"
           restore_production() {
@@ -128,6 +134,19 @@ jobs:
               # independently so both real defects must be observed.
               if [[ "$suite_result" != 1 ]]; then result=2; fi
             done
+          elif [[ "$PROOF_LANE" = preview-links || "$PROOF_LANE" = preview-links-baseline ]]; then
+            # A failing project stops the dispatcher. Independently execute the
+            # unchanged helper controls and the intended Gateway regression.
+            : > "$RUNNER_TEMP/native-proof/baseline.log"
+            result=1
+            for test_file in "${tests[@]}"; do
+              /usr/bin/time -p pnpm test "$test_file" --maxWorkers=1 >> "$RUNNER_TEMP/native-proof/baseline.log" 2>&1
+              suite_result=$?
+              printf 'suite=%s exit_code=%s\n' "$test_file" "$suite_result" >> "$RUNNER_TEMP/native-proof/baseline.log"
+              expected=0
+              if [[ "$test_file" = src/gateway/session-display-projection.test.ts ]]; then expected=1; fi
+              if [[ "$suite_result" != "$expected" ]]; then result=2; fi
+            done
           else
             /usr/bin/time -p pnpm test "${tests[@]}" --maxWorkers=1 > "$RUNNER_TEMP/native-proof/baseline.log" 2>&1
             result=$?
@@ -158,10 +177,15 @@ jobs:
               grep -F 'writes the authored ACP primary while preserving the native defaults' "$RUNNER_TEMP/native-proof/baseline.log"
               grep -F 'Unknown model:' "$RUNNER_TEMP/native-proof/baseline.log"
               ;;
+            preview-links-baseline|preview-links)
+              grep -F 'flattens Markdown nested link label before bounding a preview' "$RUNNER_TEMP/native-proof/baseline.log"
+              grep -F 'flattens Markdown balanced link destination before bounding a preview' "$RUNNER_TEMP/native-proof/baseline.log"
+              grep -F 'flattens Markdown escaped link destination before bounding a preview' "$RUNNER_TEMP/native-proof/baseline.log"
+              ;;
           esac
           grep -E 'AssertionError|expected .* to' "$RUNNER_TEMP/native-proof/baseline.log"
       - name: Candidate native regression and sibling controls
-        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline' && inputs.lane != 'grapheme-checks' && inputs.lane != 'acp-model-baseline'
+        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline' && inputs.lane != 'grapheme-checks' && inputs.lane != 'acp-model-baseline' && inputs.lane != 'preview-links-baseline'
         run: |
           set -euo pipefail
           git diff --exit-code
@@ -182,6 +206,9 @@ jobs:
               tests=(src/cli/config-cli.acp-model.process.test.ts src/cli/config-cli.test.ts src/cli/config-model-validation.test.ts src/agents/agent-scope.test.ts)
               # Rebuild the restored candidate source before invoking its CLI.
               /usr/bin/time -p pnpm build 2>&1 | tee "$RUNNER_TEMP/native-proof/build.log"
+              ;;
+            preview-links)
+              tests=(packages/normalization-core/src/markdown-plain-text.test.ts src/gateway/session-display-projection.test.ts)
               ;;
           esac
           if [[ "$PROOF_LANE" = feishu || "$PROOF_LANE" = feishu-streaming ]]; then
@@ -204,12 +231,12 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
       - name: Required changed checks
-        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline' && inputs.lane != 'acp-model-baseline'
+        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline' && inputs.lane != 'acp-model-baseline' && inputs.lane != 'preview-links-baseline'
         run: |
           set -euo pipefail
           /usr/bin/time -p pnpm check:changed --base "$PROOF_BASE" 2>&1 | tee "$RUNNER_TEMP/native-proof/changed-checks.log"
       - name: Build changed import boundary
-        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline' && inputs.lane != 'acp-model-baseline' && inputs.lane != 'acp-model'
+        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline' && inputs.lane != 'acp-model-baseline' && inputs.lane != 'acp-model' && inputs.lane != 'preview-links-baseline'
         run: |
           set -euo pipefail
           /usr/bin/time -p pnpm build 2>&1 | tee "$RUNNER_TEMP/native-proof/build.log"
