@@ -14,6 +14,7 @@ on:
         type: choice
         options:
           - grapheme
+          - grapheme-checks
           - images-baseline
           - images
 
@@ -33,7 +34,7 @@ jobs:
       - name: Validate immutable target
         run: |
           [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
-          case "$PROOF_LANE" in grapheme|images-baseline|images) ;; *) exit 2 ;; esac
+          case "$PROOF_LANE" in grapheme|grapheme-checks|images-baseline|images) ;; *) exit 2 ;; esac
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: rudycelekli/moltbot
@@ -48,6 +49,11 @@ jobs:
           test "$(node -p 'JSON.parse(require("fs").readFileSync("package.json", "utf8")).packageManager.split("+")[0]')" = "pnpm@12.5.1"
           mkdir -p "$RUNNER_TEMP/native-proof"
           printf 'candidate=%s\nbaseline=%s\n' "$EXPECTED_HEAD" "$PROOF_BASE" > "$RUNNER_TEMP/native-proof/identity.txt"
+      - name: Install repository check prerequisite
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes ripgrep
+          rg --version
       - uses: ./.github/actions/setup-node-env
         with:
           node-version: "24.x"
@@ -57,6 +63,7 @@ jobs:
           semantic-checks: "true"
           cache-mode: "off"
       - name: Require original defect through repository runner
+        if: inputs.lane != 'grapheme-checks'
         run: |
           set -euo pipefail
           case "$PROOF_LANE" in
@@ -102,7 +109,7 @@ jobs:
           esac
           grep -E 'AssertionError|expected .* to' "$RUNNER_TEMP/native-proof/baseline.log"
       - name: Candidate native regression and sibling controls
-        if: inputs.lane != 'images-baseline'
+        if: inputs.lane != 'images-baseline' && inputs.lane != 'grapheme-checks'
         run: |
           set -euo pipefail
           git diff --exit-code
