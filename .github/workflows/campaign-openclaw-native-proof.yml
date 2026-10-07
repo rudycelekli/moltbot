@@ -23,6 +23,7 @@ on:
           - feishu-streaming
           - acp-model-baseline
           - acp-model
+          - acp-model-checks
           - preview-links-baseline
           - preview-links
           - preview-links-checks
@@ -44,7 +45,7 @@ jobs:
       - name: Validate immutable target
         run: |
           [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
-          case "$PROOF_LANE" in grapheme|grapheme-checks|images-baseline|images|feishu-baseline|feishu|feishu-streaming-baseline|feishu-streaming|acp-model-baseline|acp-model|preview-links-baseline|preview-links|preview-links-checks|preview-links-generate) ;; *) exit 2 ;; esac
+          case "$PROOF_LANE" in grapheme|grapheme-checks|images-baseline|images|feishu-baseline|feishu|feishu-streaming-baseline|feishu-streaming|acp-model-baseline|acp-model|acp-model-checks|preview-links-baseline|preview-links|preview-links-checks|preview-links-generate) ;; *) exit 2 ;; esac
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: rudycelekli/moltbot
@@ -73,7 +74,7 @@ jobs:
           semantic-checks: "true"
           cache-mode: "off"
       - name: Require original defect through repository runner
-        if: inputs.lane != 'grapheme-checks' && inputs.lane != 'preview-links-checks' && inputs.lane != 'preview-links-generate'
+        if: inputs.lane != 'grapheme-checks' && inputs.lane != 'acp-model-checks' && inputs.lane != 'preview-links-checks' && inputs.lane != 'preview-links-generate'
         run: |
           set -euo pipefail
           case "$PROOF_LANE" in
@@ -205,7 +206,9 @@ jobs:
             feishu-streaming)
               tests=(extensions/feishu/src/reply-dispatcher.streaming-backlog.test.ts)
               ;;
-            acp-model)
+            acp-model|acp-model-checks)
+              # Reuse frozen230393f1 native before: four intended ACP failures
+              # and three passing controls. The seven fixtures are unchanged.
               tests=(src/cli/config-cli.acp-model.process.test.ts src/cli/config-cli.test.ts src/cli/config-model-validation.test.ts src/agents/agent-scope.test.ts)
               # Rebuild the restored candidate source before invoking its CLI.
               /usr/bin/time -p pnpm build 2>&1 | tee "$RUNNER_TEMP/native-proof/build.log"
@@ -257,7 +260,7 @@ jobs:
           set -euo pipefail
           /usr/bin/time -p pnpm check:changed --base "$PROOF_BASE" 2>&1 | tee "$RUNNER_TEMP/native-proof/changed-checks.log"
       - name: Build changed import boundary
-        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline' && inputs.lane != 'acp-model-baseline' && inputs.lane != 'acp-model' && inputs.lane != 'preview-links-baseline' && inputs.lane != 'preview-links-generate'
+        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline' && inputs.lane != 'acp-model-baseline' && inputs.lane != 'acp-model' && inputs.lane != 'acp-model-checks' && inputs.lane != 'preview-links-baseline' && inputs.lane != 'preview-links-generate'
         run: |
           set -euo pipefail
           /usr/bin/time -p pnpm build 2>&1 | tee "$RUNNER_TEMP/native-proof/build.log"
