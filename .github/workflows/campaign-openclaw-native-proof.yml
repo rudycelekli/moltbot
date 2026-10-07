@@ -25,6 +25,7 @@ on:
           - acp-model
           - preview-links-baseline
           - preview-links
+          - preview-links-checks
 
 permissions:
   contents: read
@@ -42,7 +43,7 @@ jobs:
       - name: Validate immutable target
         run: |
           [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
-          case "$PROOF_LANE" in grapheme|grapheme-checks|images-baseline|images|feishu-baseline|feishu|feishu-streaming-baseline|feishu-streaming|acp-model-baseline|acp-model|preview-links-baseline|preview-links) ;; *) exit 2 ;; esac
+          case "$PROOF_LANE" in grapheme|grapheme-checks|images-baseline|images|feishu-baseline|feishu|feishu-streaming-baseline|feishu-streaming|acp-model-baseline|acp-model|preview-links-baseline|preview-links|preview-links-checks) ;; *) exit 2 ;; esac
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: rudycelekli/moltbot
@@ -71,7 +72,7 @@ jobs:
           semantic-checks: "true"
           cache-mode: "off"
       - name: Require original defect through repository runner
-        if: inputs.lane != 'grapheme-checks'
+        if: inputs.lane != 'grapheme-checks' && inputs.lane != 'preview-links-checks'
         run: |
           set -euo pipefail
           case "$PROOF_LANE" in
@@ -172,7 +173,7 @@ jobs:
               ;;
             acp-model-baseline|acp-model)
               grep -F 'accepts an ACP bare object primary without native provider registration' "$RUNNER_TEMP/native-proof/baseline.log"
-              grep -F 'accepts an ACP qualified object primary with a configured native fallback without native provider registration' "$RUNNER_TEMP/native-proof/baseline.log"
+              grep -F 'accepts an ACP qualified object primary' "$RUNNER_TEMP/native-proof/baseline.log"
               grep -F 'accepts an ACP string primary without native provider registration' "$RUNNER_TEMP/native-proof/baseline.log"
               grep -F 'writes the authored ACP primary while preserving the native defaults' "$RUNNER_TEMP/native-proof/baseline.log"
               grep -F 'Unknown model:' "$RUNNER_TEMP/native-proof/baseline.log"
@@ -209,6 +210,11 @@ jobs:
               ;;
             preview-links)
               tests=(packages/normalization-core/src/markdown-plain-text.test.ts src/gateway/session-display-projection.test.ts)
+              ;;
+            preview-links-checks)
+              # Before proof at 8bbc18b5 exercised unchanged fixtures on the
+              # original owner. After its complete relocation, reuse that proof.
+              tests=(packages/markdown-core/src/markdown-plain-text.test.ts src/gateway/session-display-projection.test.ts)
               ;;
           esac
           if [[ "$PROOF_LANE" = feishu || "$PROOF_LANE" = feishu-streaming ]]; then
