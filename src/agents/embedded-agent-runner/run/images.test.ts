@@ -4,7 +4,9 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { createNoisyPngBuffer } from "../../../../test/helpers/image-fixtures.js";
+import { useAutoCleanupTempDirTracker } from "../../../../test/helpers/temp-dir.js";
 import { buildInboundMediaNoteProjection } from "../../../auto-reply/media-note.js";
 import { resolvePreferredOpenClawTmpDir } from "../../../infra/tmp-openclaw-dir.js";
 import {
@@ -30,6 +32,8 @@ const TINY_GIF_BUFFER = Buffer.from([
   71, 73, 70, 56, 57, 97, 1, 0, 1, 0, 128, 0, 0, 0, 0, 0, 255, 255, 255, 33, 249, 4, 1, 0, 0, 0, 0,
   44, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 2, 68, 1, 0, 59,
 ]);
+
+const tempDirs = useAutoCleanupTempDirTracker(afterEach);
 
 function expectNoPromptImages(result: { detectedRefs: unknown[]; images: unknown[] }) {
   expect(result.detectedRefs).toHaveLength(0);
@@ -207,6 +211,30 @@ Also https://cdn.mysite.com/img.jpg`,
 });
 
 describe("detectAndLoadPromptImages", () => {
+  it("omits a partially written PNG while retaining a complete prompt image", async () => {
+    const workspaceDir = tempDirs.make("openclaw-prompt-image-admission-");
+    const complete = createNoisyPngBuffer(64, 64);
+    // Both files have readable PNG headers; only the first body is still incomplete.
+    await fs.writeFile(
+      path.join(workspaceDir, "partial.png"),
+      complete.subarray(0, Math.floor(complete.length / 2)),
+    );
+    await fs.writeFile(path.join(workspaceDir, "complete.png"), complete);
+
+    const result = await detectAndLoadPromptImages({
+      prompt: "Compare ./partial.png and ./complete.png",
+      workspaceDir,
+      model: { input: ["text", "image"] },
+      workspaceOnly: true,
+    });
+
+    expect(result.detectedRefs).toHaveLength(2);
+    expect(result.loadedCount).toBe(2);
+    expect(result.images).toEqual([
+      { type: "image", mimeType: "image/png", data: complete.toString("base64") },
+    ]);
+  });
+
   it("returns no images for non-vision models even when existing images are provided", async () => {
     const result = await detectAndLoadPromptImages({
       prompt: "ignore",
