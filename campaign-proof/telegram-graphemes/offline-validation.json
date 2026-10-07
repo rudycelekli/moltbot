@@ -1,0 +1,107 @@
+{
+  "kind": "offline-fixture-validation-only",
+  "liveTelegramRun": false,
+  "nodeVersion": "v24.19.0",
+  "candidate": "0216d75b6508a9db7dcd08ade81dd8f80482bd2a",
+  "generatorSha256": "25c796cad7899b0ecec51dd0bf41e2d7734426646c036005de0861ff4dc0ee82",
+  "cases": [
+    {
+      "caseName": "family",
+      "textUtf16Units": 1210,
+      "focusCrosses1200": true,
+      "deltaCodePointWidth": 1,
+      "deltaCount": 1206
+    },
+    {
+      "caseName": "family",
+      "textUtf16Units": 1210,
+      "focusCrosses1200": true,
+      "deltaCodePointWidth": 17,
+      "deltaCount": 71
+    },
+    {
+      "caseName": "accent",
+      "textUtf16Units": 1205,
+      "focusCrosses1200": true,
+      "deltaCodePointWidth": 1,
+      "deltaCount": 1205
+    },
+    {
+      "caseName": "accent",
+      "textUtf16Units": 1205,
+      "focusCrosses1200": true,
+      "deltaCodePointWidth": 17,
+      "deltaCount": 71
+    },
+    {
+      "caseName": "flag",
+      "textUtf16Units": 1206,
+      "focusCrosses1200": true,
+      "deltaCodePointWidth": 1,
+      "deltaCount": 1204
+    },
+    {
+      "caseName": "flag",
+      "textUtf16Units": 1206,
+      "focusCrosses1200": true,
+      "deltaCodePointWidth": 17,
+      "deltaCount": 71
+    },
+    {
+      "caseName": "accent-fit",
+      "textUtf16Units": 1201,
+      "focusCrosses1200": false,
+      "deltaCodePointWidth": 1,
+      "deltaCount": 1201
+    },
+    {
+      "caseName": "accent-fit",
+      "textUtf16Units": 1201,
+      "focusCrosses1200": false,
+      "deltaCodePointWidth": 17,
+      "deltaCount": 71
+    },
+    {
+      "caseName": "flag-fit",
+      "textUtf16Units": 1203,
+      "focusCrosses1200": false,
+      "deltaCodePointWidth": 1,
+      "deltaCount": 1201
+    },
+    {
+      "caseName": "flag-fit",
+      "textUtf16Units": 1203,
+      "focusCrosses1200": false,
+      "deltaCodePointWidth": 17,
+      "deltaCount": 71
+    },
+    {
+      "caseName": "ascii",
+      "textUtf16Units": 1203,
+      "focusCrosses1200": false,
+      "deltaCodePointWidth": 1,
+      "deltaCount": 1203
+    },
+    {
+      "caseName": "ascii",
+      "textUtf16Units": 1203,
+      "focusCrosses1200": false,
+      "deltaCodePointWidth": 17,
+      "deltaCount": 71
+    },
+    {
+      "caseName": "family-short",
+      "textUtf16Units": 115,
+      "focusCrosses1200": false,
+      "deltaCodePointWidth": 1,
+      "deltaCount": 111
+    },
+    {
+      "caseName": "family-short",
+      "textUtf16Units": 115,
+      "focusCrosses1200": false,
+      "deltaCodePointWidth": 17,
+      "deltaCount": 7
+    }
+  ]
+}

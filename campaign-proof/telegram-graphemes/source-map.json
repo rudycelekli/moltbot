@@ -1,0 +1,117 @@
+{
+  "candidate": "0216d75b6508a9db7dcd08ade81dd8f80482bd2a",
+  "tree": "2d070dd349b69008e72550dde432f789d48dbeb4",
+  "worktreeStatus": "",
+  "sourceReadOnly": true,
+  "liveRun": false,
+  "sourceReferences": [
+    {
+      "path": ".agents/skills/telegram-e2e-userbot/SKILL.md",
+      "blob": "4ac0cd38d50d73cf113a19e545f4c1c49b7a862c",
+      "sha256": "ae4c244cb42dc97bdc90a89a9afa5c93527e0cd6c5997012d0ee2f10ff3008a5",
+      "bytes": 7285
+    },
+    {
+      "path": ".agents/skills/telegram-e2e-userbot/features/README.md",
+      "blob": "bb2b1c9a98d689ee2564cd6d6e4a740883ad8307",
+      "sha256": "789322672a527c95533f3ebbbb8c35fdb43baf47ff5ae04f44b3e855afaec8fe",
+      "bytes": 9683
+    },
+    {
+      "path": ".agents/skills/telegram-e2e-userbot/features/delivery-lifecycle.md",
+      "blob": "dca80753b39788d02baba9e1456e9880a61714db",
+      "sha256": "2cc443b5597285d6bcded22a98a868992e4bdd22bc70408d0cdca81155434e4a",
+      "bytes": 2501
+    },
+    {
+      "path": ".agents/skills/telegram-e2e-userbot/features/runtime-reference.md",
+      "blob": "748836ec12ca60ec955f82ff30011ad18cdbe379",
+      "sha256": "a9c475647201c76b1f578aa8241cdd1b808af3ffb50cc3f393eca230020f936b",
+      "bytes": 23047
+    },
+    {
+      "path": ".agents/skills/telegram-e2e-userbot/scripts/run-mock-sut-user-e2e.mjs",
+      "blob": "b44ac5e4c1e58638bdd679fda3165cc976386e5e",
+      "sha256": "435a45bdbc738a4951a8b93b2ba3f8dc46104299f402f33170ca96c4dd30ef79",
+      "bytes": 58256
+    },
+    {
+      "path": ".agents/skills/telegram-e2e-userbot/scripts/user-record.py",
+      "blob": "71f4912ca5a521a926099f87077a19ae5014f471",
+      "sha256": "fe59744efb29b0f9dec81ea300ce2870f76dd53eb6484f25edb49a325df8e2d0",
+      "bytes": 32883
+    },
+    {
+      "path": "scripts/e2e/mock-openai-server.mjs",
+      "blob": "f675a01825791978f77e26a8463938c6b605e229",
+      "sha256": "692afa33a253e1d4d09fd2a71edac3e4631383bb160a5b089cbb581bf2ec3545",
+      "bytes": 33099
+    },
+    {
+      "path": "scripts/e2e/lib/mock-openai-http.mjs",
+      "blob": "de4a5f7b1febbcde3c86eb20a780d4ff465ceb1e",
+      "sha256": "ff0f1d7213b6be4bbb3a6df35573f1cb8e2dfbc25d7f90fcdc1192df36773b02",
+      "bytes": 3986
+    },
+    {
+      "path": "src/config/zod-schema.core.ts",
+      "blob": "4d16e1ce29e4d3b088347061416c0e7c3bd5503e",
+      "sha256": "79dbed4c9edfef95c1aa5eb71949f4091486d4d17a57a6fdc154f4fd11dab10f",
+      "bytes": 27095
+    },
+    {
+      "path": "src/config/zod-schema.channel-messaging-common.ts",
+      "blob": "8577af9cff9c10b4c7fc7edeaab31c625f450cfb",
+      "sha256": "18f94deffa4ebc61abc149e2d852aebf6750e4e0409d8aa2326aaddda58fa13a",
+      "bytes": 9635
+    },
+    {
+      "path": "src/auto-reply/reply/get-reply-directives.ts",
+      "blob": "1a17e9ebfdf2ee4934c6ea760bd8381e73650226",
+      "sha256": "bd0925b58c41116781477507141bc2d22fc076c19ea9b9b057521786f3ce4846",
+      "bytes": 20794
+    },
+    {
+      "path": "src/auto-reply/reply/block-streaming.ts",
+      "blob": "b694dd74f86c62e2103927ce57af93b031ef9bec",
+      "sha256": "c91e62400404e15186017c90c104f12680f7600afb7a593ec9af77ae25b04ff4",
+      "bytes": 7176
+    },
+    {
+      "path": "src/auto-reply/reply/block-reply-coalescer.ts",
+      "blob": "f396d56ddb91b3cb775ff36f889cab1dd5c50416",
+      "sha256": "44b880a8382746116185fe415faae6aeeefa3dc142eee80c8f55b2f9da488cd9",
+      "bytes": 6838
+    },
+    {
+      "path": "extensions/telegram/src/bot-message-dispatch-draft.ts",
+      "blob": "56a7a6532f9a2239aa95b57c305897afb8ca1e0e",
+      "sha256": "bc5268364c97b36570e4ccdd34ac93b907dca242a07b577b541806505ef4b22a",
+      "bytes": 22400
+    },
+    {
+      "path": "extensions/telegram/src/preview-streaming.ts",
+      "blob": "0fe3775ae6cdfba2fe61ffccfe117af863d32b51",
+      "sha256": "0268089f5657ccdfb4e6ff828f529e2b77f14a1f01f56ef9d19217e5d70d99ae",
+      "bytes": 521
+    },
+    {
+      "path": "extensions/telegram/src/config-schema.ts",
+      "blob": "d67bfba052a990f0c1b0e6af9653b5c8f6b97390",
+      "sha256": "19f244d74a5771864882b40c65213349982f554ee5cd90b74bde7c0577cd6586",
+      "bytes": 10290
+    },
+    {
+      "path": "extensions/telegram/AGENTS.md",
+      "blob": "6e76cfc8d008bdc6f2f35f6ef4078e41ae3858b2",
+      "sha256": "f509021ef41252f786c1484fc5ce36aa8f4f008635cdfbd9040ff6bb4b2d429a",
+      "bytes": 8362
+    },
+    {
+      "path": "extensions/AGENTS.md",
+      "blob": "cc015d0cb8ef27c3551291a1cf53610432034304",
+      "sha256": "618921aad5b682e6784f4b8dce421885cdb7eb3bc86401bf3ab118c03a35eb3f",
+      "bytes": 4563
+    }
+  ]
+}

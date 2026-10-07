@@ -1,0 +1,19 @@
+{
+  "candidate": "0216d75b6508a9db7dcd08ade81dd8f80482bd2a",
+  "status": "prepared-unexecuted-live-handoff",
+  "liveTelegramProof": false,
+  "credentialLeaseAcquired": false,
+  "dependenciesInstalled": false,
+  "productionEdited": false,
+  "staticFixtureReviewStatus": "scoped-clean",
+  "staticFixtureReviewExit": 0,
+  "reviewScope": "fixture/prepare-control.mjs only; supplied exact maintained owner and README context",
+  "offlineCaseWidthChecks": 14,
+  "files": {
+    "README.md": "63dd60abac37aaf6206d21082c8e6eab0863b9c906f68841c7945d7230eacbe1",
+    "fixture/prepare-control.mjs": "25c796cad7899b0ecec51dd0bf41e2d7734426646c036005de0861ff4dc0ee82",
+    "source-map.json": "aed6342073ab80c6cf82b35b33ac510f71125385e76b7d27bb79d92587118a31",
+    "offline-validation.json": "560a8e653f9c553602b59b8dee527a79ef623f356dda4bff83f2d70d6f2a24b8",
+    "review/autoreview-status.json": "ffefd480dd0ec30409cd6052e384ae36718d7a0aec840f5eadb8f7418ae1cda9"
+  }
+}
