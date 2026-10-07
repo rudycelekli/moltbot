@@ -19,6 +19,8 @@ on:
           - images
           - feishu-baseline
           - feishu
+          - feishu-streaming-baseline
+          - feishu-streaming
 
 permissions:
   contents: read
@@ -36,7 +38,7 @@ jobs:
       - name: Validate immutable target
         run: |
           [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
-          case "$PROOF_LANE" in grapheme|grapheme-checks|images-baseline|images|feishu-baseline|feishu) ;; *) exit 2 ;; esac
+          case "$PROOF_LANE" in grapheme|grapheme-checks|images-baseline|images|feishu-baseline|feishu|feishu-streaming-baseline|feishu-streaming) ;; *) exit 2 ;; esac
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: rudycelekli/moltbot
@@ -81,6 +83,10 @@ jobs:
               production=(extensions/feishu/src/tool-result.ts)
               tests=(extensions/feishu/src/docx-error-loopback.test.ts)
               ;;
+            feishu-streaming-baseline|feishu-streaming)
+              production=(extensions/feishu/src/reply-dispatcher.ts)
+              tests=(extensions/feishu/src/reply-dispatcher.streaming-backlog.test.ts)
+              ;;
           esac
           mkdir -p "$RUNNER_TEMP/native-proof/production"
           restore_production() {
@@ -97,7 +103,7 @@ jobs:
             git show "$PROOF_BASE:$file" > "$file"
           done
           set +e
-          if [[ "$PROOF_LANE" = feishu || "$PROOF_LANE" = feishu-baseline ]]; then
+          if [[ "$PROOF_LANE" = feishu || "$PROOF_LANE" = feishu-baseline || "$PROOF_LANE" = feishu-streaming || "$PROOF_LANE" = feishu-streaming-baseline ]]; then
             /usr/bin/time -p node scripts/run-vitest.mjs "${tests[@]}" --maxWorkers=1 > "$RUNNER_TEMP/native-proof/baseline.log" 2>&1
             result=$?
           elif [[ "$PROOF_LANE" = images || "$PROOF_LANE" = images-baseline ]]; then
@@ -131,10 +137,13 @@ jobs:
             feishu-baseline|feishu)
               grep -F 'retains conversion rejection code, message and request log identity' "$RUNNER_TEMP/native-proof/baseline.log"
               ;;
+            feishu-streaming-baseline|feishu-streaming)
+              grep -F 'obsolete previews' "$RUNNER_TEMP/native-proof/baseline.log"
+              ;;
           esac
           grep -E 'AssertionError|expected .* to' "$RUNNER_TEMP/native-proof/baseline.log"
       - name: Candidate native regression and sibling controls
-        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'grapheme-checks'
+        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline' && inputs.lane != 'grapheme-checks'
         run: |
           set -euo pipefail
           git diff --exit-code
@@ -148,19 +157,34 @@ jobs:
             feishu)
               tests=(extensions/feishu/src/docx-error-loopback.test.ts)
               ;;
+            feishu-streaming)
+              tests=(extensions/feishu/src/reply-dispatcher.streaming-backlog.test.ts)
+              ;;
           esac
-          if [[ "$PROOF_LANE" = feishu ]]; then
+          if [[ "$PROOF_LANE" = feishu || "$PROOF_LANE" = feishu-streaming ]]; then
             /usr/bin/time -p pnpm test:extension feishu 2>&1 | tee "$RUNNER_TEMP/native-proof/candidate.log"
           else
             /usr/bin/time -p pnpm test "${tests[@]}" --maxWorkers=1 2>&1 | tee "$RUNNER_TEMP/native-proof/candidate.log"
           fi
+      - name: Retain native tests before long checks
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: openclaw-native-tests-${{ inputs.candidate }}
+          path: |
+            ${{ runner.temp }}/native-proof/identity.txt
+            ${{ runner.temp }}/native-proof/baseline.log
+            ${{ runner.temp }}/native-proof/baseline-result.txt
+            ${{ runner.temp }}/native-proof/candidate.log
+          if-no-files-found: warn
+          retention-days: 14
       - name: Required changed checks
-        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline'
+        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline'
         run: |
           set -euo pipefail
           /usr/bin/time -p pnpm check:changed --base "$PROOF_BASE" 2>&1 | tee "$RUNNER_TEMP/native-proof/changed-checks.log"
       - name: Build changed import boundary
-        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline'
+        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline'
         run: |
           set -euo pipefail
           /usr/bin/time -p pnpm build 2>&1 | tee "$RUNNER_TEMP/native-proof/build.log"
