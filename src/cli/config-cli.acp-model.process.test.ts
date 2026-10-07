@@ -14,6 +14,7 @@ async function createConfigFixture(runtime: "acp" | "native" = "acp") {
   const configPath = path.join(root, "config", "openclaw.json");
   const config: OpenClawConfig = {
     agents: {
+      ownership: "explicit",
       defaults: { workspace: path.join(root, "workspace"), model: { primary: nativeModel } },
       entries: {
         main: {},
