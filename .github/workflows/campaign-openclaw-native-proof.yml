@@ -91,8 +91,21 @@ jobs:
             git show "$PROOF_BASE:$file" > "$file"
           done
           set +e
-          /usr/bin/time -p pnpm test "${tests[@]}" --maxWorkers=1 > "$RUNNER_TEMP/native-proof/baseline.log" 2>&1
-          result=$?
+          if [[ "$PROOF_LANE" = images || "$PROOF_LANE" = images-baseline ]]; then
+            : > "$RUNNER_TEMP/native-proof/baseline.log"
+            result=1
+            for test_file in "${tests[@]}"; do
+              /usr/bin/time -p pnpm test "$test_file" --maxWorkers=1 >> "$RUNNER_TEMP/native-proof/baseline.log" 2>&1
+              suite_result=$?
+              printf 'suite=%s exit_code=%s\n' "$test_file" "$suite_result" >> "$RUNNER_TEMP/native-proof/baseline.log"
+              # The dispatcher stops on an early failed shard. Run each suite
+              # independently so both real defects must be observed.
+              if [[ "$suite_result" != 1 ]]; then result=2; fi
+            done
+          else
+            /usr/bin/time -p pnpm test "${tests[@]}" --maxWorkers=1 > "$RUNNER_TEMP/native-proof/baseline.log" 2>&1
+            result=$?
+          fi
           set -e
           cat "$RUNNER_TEMP/native-proof/baseline.log"
           printf 'exit_code=%s\n' "$result" > "$RUNNER_TEMP/native-proof/baseline-result.txt"
