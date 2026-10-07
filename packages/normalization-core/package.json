@@ -69,11 +69,6 @@
       "import": "./dist/json-schema.mjs",
       "default": "./dist/json-schema.mjs"
     },
-    "./markdown-plain-text": {
-      "types": "./dist/markdown-plain-text.d.mts",
-      "import": "./dist/markdown-plain-text.mjs",
-      "default": "./dist/markdown-plain-text.mjs"
-    },
     "./mountinfo-path": {
       "types": "./dist/mountinfo-path.d.mts",
       "import": "./dist/mountinfo-path.mjs",

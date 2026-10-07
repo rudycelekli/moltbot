@@ -1,4 +1,4 @@
-import { flattenMarkdownToPlainText } from "@openclaw/normalization-core/markdown-plain-text";
+import { flattenMarkdownToPlainText } from "@openclaw/markdown-core/markdown-plain-text";
 import { err, type Result } from "@openclaw/normalization-core/result";
 import { truncateUtf16Safe } from "@openclaw/normalization-core/utf16-slice";
 import {

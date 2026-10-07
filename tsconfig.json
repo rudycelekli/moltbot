@@ -159,6 +159,9 @@
       "@openclaw/markdown-core/fences": ["./packages/markdown-core/src/fences.ts"],
       "@openclaw/markdown-core/frontmatter": ["./packages/markdown-core/src/frontmatter.ts"],
       "@openclaw/markdown-core/ir": ["./packages/markdown-core/src/ir.ts"],
+      "@openclaw/markdown-core/markdown-plain-text": [
+        "./packages/markdown-core/src/markdown-plain-text.ts"
+      ],
       "@openclaw/markdown-core/render": ["./packages/markdown-core/src/render.ts"],
       "@openclaw/markdown-core/render-aware-chunking": [
         "./packages/markdown-core/src/render-aware-chunking.ts"
@@ -192,9 +195,6 @@
       ],
       "@openclaw/normalization-core/json-schema": [
         "./packages/normalization-core/src/json-schema.ts"
-      ],
-      "@openclaw/normalization-core/markdown-plain-text": [
-        "./packages/normalization-core/src/markdown-plain-text.ts"
       ],
       "@openclaw/normalization-core/mountinfo-path": [
         "./packages/normalization-core/src/mountinfo-path.ts"

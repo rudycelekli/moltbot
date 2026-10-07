@@ -1,3 +1,5 @@
+import { flattenMarkdownInlineLinks } from "./link-spans.js";
+
 /**
  * Flattens Markdown into a single line of readable plain text.
  *
@@ -7,12 +9,11 @@
  * link/image text, so it must not be used where the Markdown is rendered.
  */
 export function flattenMarkdownToPlainText(text: string): string {
-  return text
+  const source = text
     .replace(/```[\s\S]*?```/g, " ")
     .replace(/```/g, " ")
-    .replace(/`([^`]*)`/g, "$1")
-    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/`([^`]*)`/g, "$1");
+  return flattenMarkdownInlineLinks(source)
     .replace(/^\s{0,3}(?:#{1,6}|>|[-+*]|\d+[.)])\s+/gm, "")
     .replace(/(\*{1,2})(?=\S)([\s\S]*?\S)\1/g, "$2")
     .replace(/(^|[^\p{L}\p{N}])(_{1,2})(?=\S)([\s\S]*?\S)\2(?![\p{L}\p{N}])/gu, "$1$3")

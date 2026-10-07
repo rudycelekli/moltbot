@@ -34,6 +34,11 @@
       "import": "./dist/ir.mjs",
       "default": "./dist/ir.mjs"
     },
+    "./markdown-plain-text": {
+      "types": "./dist/markdown-plain-text.d.mts",
+      "import": "./dist/markdown-plain-text.mjs",
+      "default": "./dist/markdown-plain-text.mjs"
+    },
     "./render": {
       "types": "./dist/render.d.mts",
       "import": "./dist/render.mjs",

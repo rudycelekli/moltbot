@@ -1,4 +1,4 @@
-import { flattenMarkdownToPlainText } from "@openclaw/normalization-core/markdown-plain-text";
+import { flattenMarkdownToPlainText } from "@openclaw/markdown-core/markdown-plain-text";
 import { asOptionalRecord as readRecord } from "@openclaw/normalization-core/record-coerce";
 import { truncateUtf16Safe } from "@openclaw/normalization-core/utf16-slice";
 import { extractAssistantPhaseText } from "../shared/chat-message-content.js";

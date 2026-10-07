@@ -1,4 +1,4 @@
-import { flattenMarkdownToPlainText } from "@openclaw/normalization-core/markdown-plain-text";
+import { flattenMarkdownToPlainText } from "@openclaw/markdown-core/markdown-plain-text";
 import {
   INTERNAL_RUNTIME_CONTEXT_BEGIN,
   INTERNAL_RUNTIME_CONTEXT_END,
