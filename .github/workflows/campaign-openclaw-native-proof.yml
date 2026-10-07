@@ -21,6 +21,8 @@ on:
           - feishu
           - feishu-streaming-baseline
           - feishu-streaming
+          - acp-model-baseline
+          - acp-model
 
 permissions:
   contents: read
@@ -33,12 +35,12 @@ jobs:
       CI: "true"
       PROOF_LANE: ${{ inputs.lane }}
       EXPECTED_HEAD: ${{ inputs.candidate }}
-      PROOF_BASE: 8242407539b5d783b8fb8793f54d7092b4bbbd5a
+      PROOF_BASE: ${{ startsWith(inputs.lane, 'acp-model') && '96ccec4a1385f1554579d60dc058fb82419dbc79' || '8242407539b5d783b8fb8793f54d7092b4bbbd5a' }}
     steps:
       - name: Validate immutable target
         run: |
           [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
-          case "$PROOF_LANE" in grapheme|grapheme-checks|images-baseline|images|feishu-baseline|feishu|feishu-streaming-baseline|feishu-streaming) ;; *) exit 2 ;; esac
+          case "$PROOF_LANE" in grapheme|grapheme-checks|images-baseline|images|feishu-baseline|feishu|feishu-streaming-baseline|feishu-streaming|acp-model-baseline|acp-model) ;; *) exit 2 ;; esac
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: rudycelekli/moltbot
@@ -87,6 +89,10 @@ jobs:
               production=(extensions/feishu/src/reply-dispatcher.ts)
               tests=(extensions/feishu/src/reply-dispatcher.streaming-backlog.test.ts)
               ;;
+            acp-model-baseline|acp-model)
+              production=(src/cli/config-model-validation.ts)
+              tests=(src/cli/config-cli.acp-model.process.test.ts)
+              ;;
           esac
           mkdir -p "$RUNNER_TEMP/native-proof/production"
           restore_production() {
@@ -102,6 +108,11 @@ jobs:
           for file in "${production[@]}"; do
             git show "$PROOF_BASE:$file" > "$file"
           done
+          if [[ "$PROOF_LANE" = acp-model || "$PROOF_LANE" = acp-model-baseline ]]; then
+            # The packaged CLI reads dist. Build after restoring original source
+            # so the before test cannot accidentally use candidate artifacts.
+            /usr/bin/time -p pnpm build 2>&1 | tee "$RUNNER_TEMP/native-proof/baseline-build.log"
+          fi
           set +e
           if [[ "$PROOF_LANE" = feishu || "$PROOF_LANE" = feishu-baseline || "$PROOF_LANE" = feishu-streaming || "$PROOF_LANE" = feishu-streaming-baseline ]]; then
             /usr/bin/time -p node scripts/run-vitest.mjs "${tests[@]}" --maxWorkers=1 > "$RUNNER_TEMP/native-proof/baseline.log" 2>&1
@@ -140,10 +151,17 @@ jobs:
             feishu-streaming-baseline|feishu-streaming)
               grep -F 'obsolete previews' "$RUNNER_TEMP/native-proof/baseline.log"
               ;;
+            acp-model-baseline|acp-model)
+              grep -F 'accepts an ACP bare object primary without native provider registration' "$RUNNER_TEMP/native-proof/baseline.log"
+              grep -F 'accepts an ACP qualified object primary with a configured native fallback without native provider registration' "$RUNNER_TEMP/native-proof/baseline.log"
+              grep -F 'accepts an ACP string primary without native provider registration' "$RUNNER_TEMP/native-proof/baseline.log"
+              grep -F 'writes the authored ACP primary while preserving the native defaults' "$RUNNER_TEMP/native-proof/baseline.log"
+              grep -F 'Unknown model:' "$RUNNER_TEMP/native-proof/baseline.log"
+              ;;
           esac
           grep -E 'AssertionError|expected .* to' "$RUNNER_TEMP/native-proof/baseline.log"
       - name: Candidate native regression and sibling controls
-        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline' && inputs.lane != 'grapheme-checks'
+        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline' && inputs.lane != 'grapheme-checks' && inputs.lane != 'acp-model-baseline'
         run: |
           set -euo pipefail
           git diff --exit-code
@@ -160,6 +178,11 @@ jobs:
             feishu-streaming)
               tests=(extensions/feishu/src/reply-dispatcher.streaming-backlog.test.ts)
               ;;
+            acp-model)
+              tests=(src/cli/config-cli.acp-model.process.test.ts src/cli/config-cli.test.ts src/cli/config-model-validation.test.ts src/agents/agent-scope.test.ts)
+              # Rebuild the restored candidate source before invoking its CLI.
+              /usr/bin/time -p pnpm build 2>&1 | tee "$RUNNER_TEMP/native-proof/build.log"
+              ;;
           esac
           if [[ "$PROOF_LANE" = feishu || "$PROOF_LANE" = feishu-streaming ]]; then
             /usr/bin/time -p pnpm test:extension feishu 2>&1 | tee "$RUNNER_TEMP/native-proof/candidate.log"
@@ -174,17 +197,19 @@ jobs:
           path: |
             ${{ runner.temp }}/native-proof/identity.txt
             ${{ runner.temp }}/native-proof/baseline.log
+            ${{ runner.temp }}/native-proof/baseline-build.log
+            ${{ runner.temp }}/native-proof/build.log
             ${{ runner.temp }}/native-proof/baseline-result.txt
             ${{ runner.temp }}/native-proof/candidate.log
           if-no-files-found: warn
           retention-days: 14
       - name: Required changed checks
-        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline'
+        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline' && inputs.lane != 'acp-model-baseline'
         run: |
           set -euo pipefail
           /usr/bin/time -p pnpm check:changed --base "$PROOF_BASE" 2>&1 | tee "$RUNNER_TEMP/native-proof/changed-checks.log"
       - name: Build changed import boundary
-        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline'
+        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline' && inputs.lane != 'acp-model-baseline' && inputs.lane != 'acp-model'
         run: |
           set -euo pipefail
           /usr/bin/time -p pnpm build 2>&1 | tee "$RUNNER_TEMP/native-proof/build.log"
