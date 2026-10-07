@@ -26,6 +26,7 @@ on:
           - preview-links-baseline
           - preview-links
           - preview-links-checks
+          - preview-links-generate
 
 permissions:
   contents: read
@@ -43,7 +44,7 @@ jobs:
       - name: Validate immutable target
         run: |
           [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
-          case "$PROOF_LANE" in grapheme|grapheme-checks|images-baseline|images|feishu-baseline|feishu|feishu-streaming-baseline|feishu-streaming|acp-model-baseline|acp-model|preview-links-baseline|preview-links|preview-links-checks) ;; *) exit 2 ;; esac
+          case "$PROOF_LANE" in grapheme|grapheme-checks|images-baseline|images|feishu-baseline|feishu|feishu-streaming-baseline|feishu-streaming|acp-model-baseline|acp-model|preview-links-baseline|preview-links|preview-links-checks|preview-links-generate) ;; *) exit 2 ;; esac
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: rudycelekli/moltbot
@@ -72,7 +73,7 @@ jobs:
           semantic-checks: "true"
           cache-mode: "off"
       - name: Require original defect through repository runner
-        if: inputs.lane != 'grapheme-checks' && inputs.lane != 'preview-links-checks'
+        if: inputs.lane != 'grapheme-checks' && inputs.lane != 'preview-links-checks' && inputs.lane != 'preview-links-generate'
         run: |
           set -euo pipefail
           case "$PROOF_LANE" in
@@ -187,7 +188,7 @@ jobs:
           esac
           grep -E 'AssertionError|expected .* to' "$RUNNER_TEMP/native-proof/baseline.log"
       - name: Candidate native regression and sibling controls
-        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline' && inputs.lane != 'grapheme-checks' && inputs.lane != 'acp-model-baseline' && inputs.lane != 'preview-links-baseline'
+        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline' && inputs.lane != 'grapheme-checks' && inputs.lane != 'acp-model-baseline' && inputs.lane != 'preview-links-baseline' && inputs.lane != 'preview-links-generate'
         run: |
           set -euo pipefail
           git diff --exit-code
@@ -215,7 +216,8 @@ jobs:
             preview-links-checks)
               # Before proof at 8bbc18b5 exercised unchanged fixtures on the
               # original owner. After its complete relocation, reuse that proof.
-              tests=(packages/markdown-core/src/markdown-plain-text.test.ts src/gateway/session-display-projection.test.ts)
+              tests=(packages/markdown-core/src/markdown-plain-text.test.ts src/gateway/session-display-projection.test.ts src/link-understanding/detect.test.ts ui/src/pages/chat/components/chat-transcript-feed.test.ts ui/src/components/app-sidebar-session-narration.test.ts)
+              node --import ./scripts/tsx.mjs scripts/ensure-playwright-chromium.mts
               ;;
           esac
           if [[ "$PROOF_LANE" = feishu || "$PROOF_LANE" = feishu-streaming ]]; then
@@ -223,6 +225,18 @@ jobs:
           else
             /usr/bin/time -p pnpm test "${tests[@]}" --maxWorkers=1 2>&1 | tee "$RUNNER_TEMP/native-proof/candidate.log"
           fi
+      - name: Generate preview boot manifest through repository capture
+        if: inputs.lane == 'preview-links-generate'
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          cp ui/config/control-ui-boot-modules.json "$RUNNER_TEMP/native-proof/boot-manifest-before.json"
+          node --import ./scripts/tsx.mjs scripts/ensure-playwright-chromium.mts
+          /usr/bin/time -p pnpm ui:boot-manifest:gen 2>&1 | tee "$RUNNER_TEMP/native-proof/boot-manifest-generator.log"
+          git diff --exit-code -- . ':(exclude)ui/config/control-ui-boot-modules.json'
+          cp ui/config/control-ui-boot-modules.json "$RUNNER_TEMP/native-proof/boot-manifest-after.json"
+          git diff -- ui/config/control-ui-boot-modules.json > "$RUNNER_TEMP/native-proof/boot-manifest.patch"
+          sha256sum "$RUNNER_TEMP/native-proof/boot-manifest-"*.json > "$RUNNER_TEMP/native-proof/boot-manifest-sha256.txt"
       - name: Retain native tests before long checks
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
@@ -238,12 +252,12 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
       - name: Required changed checks
-        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline' && inputs.lane != 'acp-model-baseline' && inputs.lane != 'preview-links-baseline'
+        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline' && inputs.lane != 'acp-model-baseline' && inputs.lane != 'preview-links-baseline' && inputs.lane != 'preview-links-generate'
         run: |
           set -euo pipefail
           /usr/bin/time -p pnpm check:changed --base "$PROOF_BASE" 2>&1 | tee "$RUNNER_TEMP/native-proof/changed-checks.log"
       - name: Build changed import boundary
-        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline' && inputs.lane != 'acp-model-baseline' && inputs.lane != 'acp-model' && inputs.lane != 'preview-links-baseline'
+        if: inputs.lane != 'images-baseline' && inputs.lane != 'feishu-baseline' && inputs.lane != 'feishu-streaming-baseline' && inputs.lane != 'acp-model-baseline' && inputs.lane != 'acp-model' && inputs.lane != 'preview-links-baseline' && inputs.lane != 'preview-links-generate'
         run: |
           set -euo pipefail
           /usr/bin/time -p pnpm build 2>&1 | tee "$RUNNER_TEMP/native-proof/build.log"
