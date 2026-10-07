@@ -7,22 +7,33 @@ on:
         description: Reviewed full commit SHA in this fork
         required: true
         type: string
+      lane:
+        description: Reviewed native proof lane
+        required: true
+        default: grapheme
+        type: choice
+        options:
+          - grapheme
+          - images-baseline
+          - images
 
 permissions:
   contents: read
 
 jobs:
-  grapheme-regression:
+  native-regression:
     runs-on: ubuntu-latest
     timeout-minutes: 55
     env:
       CI: "true"
+      PROOF_LANE: ${{ inputs.lane }}
       EXPECTED_HEAD: ${{ inputs.candidate }}
       PROOF_BASE: 8242407539b5d783b8fb8793f54d7092b4bbbd5a
     steps:
       - name: Validate immutable target
         run: |
           [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
+          case "$PROOF_LANE" in grapheme|images-baseline|images) ;; *) exit 2 ;; esac
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: rudycelekli/moltbot
@@ -48,31 +59,69 @@ jobs:
       - name: Require original defect through repository runner
         run: |
           set -euo pipefail
-          production=src/agents/embedded-agent-block-chunker.ts
-          saved="$RUNNER_TEMP/native-proof/candidate-production.ts"
-          cp "$production" "$saved"
-          trap 'cp "$saved" "$production"' EXIT
-          git show "$PROOF_BASE:$production" > "$production"
+          case "$PROOF_LANE" in
+            grapheme)
+              production=(src/agents/embedded-agent-block-chunker.ts)
+              tests=(src/agents/embedded-agent-block-chunker.test.ts src/agents/embedded-agent-subscribe.subscribe-embedded-agent-session.subscribeembeddedagentsession.test.ts)
+              ;;
+            images-baseline|images)
+              production=(src/agents/tool-images.ts src/agents/agent-tools.read.ts src/agents/embedded-agent-runner/run/images.ts)
+              tests=(src/agents/embedded-agent-runner/run/images.test.ts src/agents/agent-tools.read.images.test.ts)
+              ;;
+          esac
+          mkdir -p "$RUNNER_TEMP/native-proof/production"
+          restore_production() {
+            for file in "${production[@]}"; do
+              cp "$RUNNER_TEMP/native-proof/production/$file" "$file"
+            done
+          }
+          for file in "${production[@]}"; do
+            mkdir -p "$RUNNER_TEMP/native-proof/production/$(dirname "$file")"
+            cp "$file" "$RUNNER_TEMP/native-proof/production/$file"
+          done
+          trap restore_production EXIT
+          for file in "${production[@]}"; do
+            git show "$PROOF_BASE:$file" > "$file"
+          done
           set +e
-          /usr/bin/time -p pnpm test src/agents/embedded-agent-block-chunker.test.ts src/agents/embedded-agent-subscribe.subscribe-embedded-agent-session.subscribeembeddedagentsession.test.ts --maxWorkers=1 > "$RUNNER_TEMP/native-proof/baseline.log" 2>&1
+          /usr/bin/time -p pnpm test "${tests[@]}" --maxWorkers=1 > "$RUNNER_TEMP/native-proof/baseline.log" 2>&1
           result=$?
           set -e
           cat "$RUNNER_TEMP/native-proof/baseline.log"
           printf 'exit_code=%s\n' "$result" > "$RUNNER_TEMP/native-proof/baseline-result.txt"
           test "$result" = 1
-          grep -F 'keeps a fitting family emoji intact at the normal streaming cap' "$RUNNER_TEMP/native-proof/baseline.log"
-          grep -F 'delivers intact graphemes from' "$RUNNER_TEMP/native-proof/baseline.log"
+          case "$PROOF_LANE" in
+            grapheme)
+              grep -F 'keeps a fitting family emoji intact at the normal streaming cap' "$RUNNER_TEMP/native-proof/baseline.log"
+              grep -F 'delivers intact graphemes from' "$RUNNER_TEMP/native-proof/baseline.log"
+              ;;
+            images-baseline|images)
+              grep -F 'reads a PNG snapshot (partially written: true)' "$RUNNER_TEMP/native-proof/baseline.log"
+              grep -F 'omits a partially written PNG while retaining a complete prompt image' "$RUNNER_TEMP/native-proof/baseline.log"
+              ;;
+          esac
           grep -E 'AssertionError|expected .* to' "$RUNNER_TEMP/native-proof/baseline.log"
       - name: Candidate native regression and sibling controls
+        if: inputs.lane != 'images-baseline'
         run: |
           set -euo pipefail
           git diff --exit-code
-          /usr/bin/time -p pnpm test src/agents/embedded-agent-block-chunker.test.ts src/agents/embedded-agent-subscribe.subscribe-embedded-agent-session.subscribeembeddedagentsession.test.ts --maxWorkers=1 2>&1 | tee "$RUNNER_TEMP/native-proof/candidate.log"
+          case "$PROOF_LANE" in
+            grapheme)
+              tests=(src/agents/embedded-agent-block-chunker.test.ts src/agents/embedded-agent-subscribe.subscribe-embedded-agent-session.subscribeembeddedagentsession.test.ts)
+              ;;
+            images)
+              tests=(src/agents/embedded-agent-runner/run/images.test.ts src/agents/agent-tools.read.images.test.ts src/agents/tool-images.test.ts src/agents/tool-images.backend-unavailable.test.ts src/agents/tool-images.input-cap.test.ts src/agents/tool-images.log.test.ts)
+              ;;
+          esac
+          /usr/bin/time -p pnpm test "${tests[@]}" --maxWorkers=1 2>&1 | tee "$RUNNER_TEMP/native-proof/candidate.log"
       - name: Required changed checks
+        if: inputs.lane != 'images-baseline'
         run: |
           set -euo pipefail
           /usr/bin/time -p pnpm check:changed --base "$PROOF_BASE" 2>&1 | tee "$RUNNER_TEMP/native-proof/changed-checks.log"
       - name: Build changed import boundary
+        if: inputs.lane != 'images-baseline'
         run: |
           set -euo pipefail
           /usr/bin/time -p pnpm build 2>&1 | tee "$RUNNER_TEMP/native-proof/build.log"
