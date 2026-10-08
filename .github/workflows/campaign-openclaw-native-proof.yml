@@ -12,13 +12,13 @@ permissions:
   contents: read
 
 jobs:
-  grapheme-regression:
+  feishu-threading-before:
     runs-on: ubuntu-latest
     timeout-minutes: 55
     env:
       CI: "true"
       EXPECTED_HEAD: ${{ inputs.candidate }}
-      PROOF_BASE: 8242407539b5d783b8fb8793f54d7092b4bbbd5a
+      PROOF_BASE: 05161b949bcded143f477df59834b831054f555e
     steps:
       - name: Validate immutable target
         run: |
@@ -30,12 +30,36 @@ jobs:
           fetch-depth: 0
           filter: blob:none
           persist-credentials: false
-      - name: Verify source identity
+      - name: Verify frozen tests-only source
         run: |
+          set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-          git merge-base --is-ancestor "$PROOF_BASE" HEAD
-          test "$(node -p 'JSON.parse(require("fs").readFileSync("package.json", "utf8")).packageManager.split("+")[0]')" = "pnpm@12.5.1"
+          test "$(git rev-list --parents -n 1 HEAD)" = "$EXPECTED_HEAD $PROOF_BASE"
+          test "$(git diff --name-only "$PROOF_BASE" HEAD)" = "src/auto-reply/reply/agent-runner-utils.test.ts"
+          test "$(git rev-parse "$PROOF_BASE:src/auto-reply/reply/agent-runner-utils.test.ts")" = "69980c0ef1b6c0f569de3e471513b14558e6297e"
+          test "$(git rev-parse "$PROOF_BASE:extensions/feishu/src/channel.ts")" = "326cccdbbbc1d5596a2c4d1b05ca548d2cf06242"
+          test "$(git rev-parse "HEAD:extensions/feishu/src/channel.ts")" = "326cccdbbbc1d5596a2c4d1b05ca548d2cf06242"
+          test "$(git rev-parse "$PROOF_BASE:src/auto-reply/reply/agent-runner-utils.ts")" = "e39263a468235ee9c0eebe3a3c37ce6e091ae274"
+          test "$(git rev-parse "HEAD:src/auto-reply/reply/agent-runner-utils.ts")" = "e39263a468235ee9c0eebe3a3c37ce6e091ae274"
+          test "$(git rev-parse "$PROOF_BASE:src/infra/outbound/message-action-threading.ts")" = "1fcf42e4a0b8905d52ce562df7b49cec5f0b0166"
+          test "$(git rev-parse "HEAD:src/infra/outbound/message-action-threading.ts")" = "1fcf42e4a0b8905d52ce562df7b49cec5f0b0166"
+          test "$(git rev-parse "$PROOF_BASE:extensions/feishu/channel-plugin-api.ts")" = "66cb83be02490fc162e35081066dd335ed064ac3"
+          test "$(git rev-parse "HEAD:extensions/feishu/channel-plugin-api.ts")" = "66cb83be02490fc162e35081066dd335ed064ac3"
+          test "$(git rev-parse "$PROOF_BASE:package.json")" = "6e9fba39fecfa35f120c80906f5333e5fc742290"
+          test "$(git rev-parse "HEAD:package.json")" = "6e9fba39fecfa35f120c80906f5333e5fc742290"
+          test "$(git rev-parse "$PROOF_BASE:pnpm-lock.yaml")" = "08687fb86b5c922c34e7b58efef2236b580506af"
+          test "$(git rev-parse "HEAD:pnpm-lock.yaml")" = "08687fb86b5c922c34e7b58efef2236b580506af"
+          test "$(git rev-parse "$PROOF_BASE:pnpm-workspace.yaml")" = "ee653dcb8089d4f93265be0c592a7bbbd76c79cb"
+          test "$(git rev-parse "HEAD:pnpm-workspace.yaml")" = "ee653dcb8089d4f93265be0c592a7bbbd76c79cb"
+          test "$(git rev-parse "$PROOF_BASE:.github/actions/setup-node-env/action.yml")" = "f3918b833a0edcdb3ea221813cac63f80c384b87"
+          test "$(git rev-parse "HEAD:.github/actions/setup-node-env/action.yml")" = "f3918b833a0edcdb3ea221813cac63f80c384b87"
+          test "$(git rev-parse "$PROOF_BASE:.oxfmtrc.jsonc")" = "79c0447a31a51ac395e003c347d5295fcdcf20ce"
+          test "$(git rev-parse "HEAD:.oxfmtrc.jsonc")" = "79c0447a31a51ac395e003c347d5295fcdcf20ce"
+          test "$(git rev-parse "HEAD:src/auto-reply/reply/agent-runner-utils.test.ts")" = "067676c18fa9345c49e4a2ffeefcae451edc6715"
+          printf '%s  %s\n' '6f62b627def11b11ce2618fd947bd4f63081f326599838adc573998d70b358a7' 'src/auto-reply/reply/agent-runner-utils.test.ts' | sha256sum --check
           mkdir -p "$RUNNER_TEMP/native-proof"
+          git show --no-patch --format=fuller HEAD > "$RUNNER_TEMP/native-proof/commit.txt"
+          git diff --binary "$PROOF_BASE" HEAD > "$RUNNER_TEMP/native-proof/tests-only.patch"
           printf 'candidate=%s\nbaseline=%s\n' "$EXPECTED_HEAD" "$PROOF_BASE" > "$RUNNER_TEMP/native-proof/identity.txt"
       - uses: ./.github/actions/setup-node-env
         with:
@@ -45,41 +69,88 @@ jobs:
           frozen-lockfile: "true"
           semantic-checks: "true"
           cache-mode: "off"
-      - name: Require original defect through repository runner
+      - name: Record pinned dependency and actual runtime identities
         run: |
           set -euo pipefail
-          production=src/agents/embedded-agent-block-chunker.ts
-          saved="$RUNNER_TEMP/native-proof/candidate-production.ts"
-          cp "$production" "$saved"
-          trap 'cp "$saved" "$production"' EXIT
-          git show "$PROOF_BASE:$production" > "$production"
+          node --version | tee "$RUNNER_TEMP/native-proof/node-version.txt"
+          pnpm --version | tee "$RUNNER_TEMP/native-proof/pnpm-version.txt"
+          test "$(pnpm --version)" = "12.5.1"
+          node -e 'const v=process.versions.node.split(".").map(Number);if(v[0]!==24||v[1]<16)process.exit(1)'
+          sha256sum package.json pnpm-lock.yaml pnpm-workspace.yaml > "$RUNNER_TEMP/native-proof/dependency-hashes.txt"
+      - name: Require current native formatting and changed checks
+        run: |
+          set -euo pipefail
+          /usr/bin/time -p pnpm exec oxfmt --check src/auto-reply/reply/agent-runner-utils.test.ts 2>&1 | tee "$RUNNER_TEMP/native-proof/format.log"
+          /usr/bin/time -p pnpm check:changed --base "$PROOF_BASE" 2>&1 | tee "$RUNNER_TEMP/native-proof/changed-checks.log"
+      - name: Build actual public import boundary
+        run: |
+          set -euo pipefail
+          /usr/bin/time -p pnpm build 2>&1 | tee "$RUNNER_TEMP/native-proof/build.log"
+      - name: Require exact native before failures and positive controls
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          cat > "$RUNNER_TEMP/native-proof/evaluate.py" <<'PY_EVALUATOR'
+          import json, re, sys
+          from pathlib import Path
+          
+          OWNER = "src/auto-reply/reply/agent-runner-utils.test.ts"
+          GROUP = "Feishu implicit reply targets"
+          INVALID = [
+              "b6a9fb30-6bc6-4000-8000-000000000001",
+              "card-action-c-fixture",
+              "queued-event:fixture",
+          ]
+          FAILED = {"does not inherit a non-platform trigger " + value for value in INVALID}
+          PASSED = {
+              "preserves a native inbound message target",
+              "preserves an explicit native reply over a synthetic trigger",
+              "does not inherit a reply without a trigger",
+              "keeps the caller's top-level opt-out",
+          }
+          
+          def validate(report, log, exit_code):
+              assert exit_code == 1, "native exit must be exactly 1"
+              assert report.get("numFailedTests") == 3 and report.get("numPassedTests") == 4
+              assert report.get("success") is False
+              files = report.get("testResults", [])
+              assert len(files) == 1 and files[0]["name"].endswith("/" + OWNER)
+              assert files[0].get("message", "") == "", "file-level import/setup error"
+              assertions = files[0].get("assertionResults", [])
+              selected = [a for a in assertions if GROUP in a.get("ancestorTitles", [])]
+              assert len(selected) == 7 and {a["title"] for a in selected} == FAILED | PASSED
+              for a in selected:
+                  expected = "failed" if a["title"] in FAILED else "passed"
+                  assert a["status"] == expected, a["title"]
+                  errors = a.get("failureMessages") or []
+                  if expected == "failed":
+                      assert len(errors) == 1
+                      assert re.search(r"AssertionError: expected .* to be undefined", errors[0], re.S)
+                      assert re.search(re.escape(OWNER) + r":674:\d+", errors[0]), "wrong assertion source line"
+                      value = a["title"].removeprefix("does not inherit a non-platform trigger ")
+                      assert value in errors[0], "unexpected received value"
+                  else:
+                      assert not errors
+              assert all(a.get("status") in {"skipped", "pending"} for a in assertions if a not in selected)
+              assert not re.search(r"Unhandled (?:Errors?|Rejections?)|Uncaught Exception|ERR_MODULE_NOT_FOUND|Cannot find module|Failed to load|Error during|ReferenceError:|TypeError:|SyntaxError:", log, re.I)
+              return {"outcome": "EXPECTED_NATIVE_BEFORE", "failed": sorted(FAILED), "passed": sorted(PASSED), "live_provider_http": False}
+          
+          if __name__ == "__main__":
+              result = validate(json.loads(Path(sys.argv[1]).read_text()), Path(sys.argv[2]).read_text(), int(sys.argv[3]))
+              print(json.dumps(result, indent=2))
+          PY_EVALUATOR
           set +e
-          /usr/bin/time -p pnpm test src/agents/embedded-agent-block-chunker.test.ts src/agents/embedded-agent-subscribe.subscribe-embedded-agent-session.subscribeembeddedagentsession.test.ts --maxWorkers=1 > "$RUNNER_TEMP/native-proof/baseline.log" 2>&1
+          /usr/bin/time -p pnpm test src/auto-reply/reply/agent-runner-utils.test.ts --maxWorkers=1 -t 'Feishu implicit reply targets' --reporter=json --reporter=verbose --outputFile="$RUNNER_TEMP/native-proof/baseline.json" > "$RUNNER_TEMP/native-proof/baseline.log" 2>&1
           result=$?
           set -e
           cat "$RUNNER_TEMP/native-proof/baseline.log"
           printf 'exit_code=%s\n' "$result" > "$RUNNER_TEMP/native-proof/baseline-result.txt"
-          test "$result" = 1
-          grep -F 'keeps a fitting family emoji intact at the normal streaming cap' "$RUNNER_TEMP/native-proof/baseline.log"
-          grep -F 'delivers intact graphemes from' "$RUNNER_TEMP/native-proof/baseline.log"
-          grep -E 'AssertionError|expected .* to' "$RUNNER_TEMP/native-proof/baseline.log"
-      - name: Candidate native regression and sibling controls
-        run: |
-          set -euo pipefail
+          python3 "$RUNNER_TEMP/native-proof/evaluate.py" "$RUNNER_TEMP/native-proof/baseline.json" "$RUNNER_TEMP/native-proof/baseline.log" "$result" | tee "$RUNNER_TEMP/native-proof/qualification.json"
           git diff --exit-code
-          /usr/bin/time -p pnpm test src/agents/embedded-agent-block-chunker.test.ts src/agents/embedded-agent-subscribe.subscribe-embedded-agent-session.subscribeembeddedagentsession.test.ts --maxWorkers=1 2>&1 | tee "$RUNNER_TEMP/native-proof/candidate.log"
-      - name: Required changed checks
-        run: |
-          set -euo pipefail
-          /usr/bin/time -p pnpm check:changed --base "$PROOF_BASE" 2>&1 | tee "$RUNNER_TEMP/native-proof/changed-checks.log"
-      - name: Build changed import boundary
-        run: |
-          set -euo pipefail
-          /usr/bin/time -p pnpm build 2>&1 | tee "$RUNNER_TEMP/native-proof/build.log"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
-          name: openclaw-native-proof-${{ inputs.candidate }}
+          name: openclaw-feishu-before-${{ inputs.candidate }}
           path: ${{ runner.temp }}/native-proof/
           if-no-files-found: warn
           retention-days: 14
