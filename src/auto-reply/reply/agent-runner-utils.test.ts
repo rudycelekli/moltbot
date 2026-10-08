@@ -1,5 +1,8 @@
 // Tests agent runner utility decisions for fallbacks, channels, and reasoning tags.
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ChannelPlugin } from "../../channels/plugins/types.plugin.js";
+import { resolveAndApplyOutboundReplyToId } from "../../infra/outbound/message-action-threading.js";
+import { loadBundledPluginFacade } from "../../test-utils/bundled-plugin-public-surface.js";
 import type { FollowupRun } from "./queue.js";
 
 const hoisted = vi.hoisted(() => {
@@ -626,6 +629,82 @@ describe("agent-runner-utils", () => {
     });
 
     expect(resolved.embeddedContext.currentInboundAudio).toBe(true);
+  });
+
+  describe("Feishu implicit reply targets", () => {
+    let feishuPlugin: ChannelPlugin | undefined;
+    async function threading(messageId: string | undefined) {
+      feishuPlugin ??= (
+        await loadBundledPluginFacade<{ feishuPlugin: ChannelPlugin }>({
+          pluginId: "feishu",
+          artifactBasename: "channel-plugin-api.js",
+        })
+      ).feishuPlugin;
+      hoisted.getChannelPluginMock.mockReturnValue(feishuPlugin);
+      return buildThreadingToolContext({
+        sessionCtx: {
+          Provider: "feishu",
+          To: "chat:oc_fixture",
+          NativeChannelId: "oc_fixture",
+          ChatType: "group",
+          MessageSid: messageId,
+          ReplyToMode: "all",
+        },
+        config: {},
+        hasRepliedRef: undefined,
+      });
+    }
+    const resolve = (
+      params: Record<string, unknown>,
+      toolContext: Awaited<ReturnType<typeof threading>>,
+    ) =>
+      resolveAndApplyOutboundReplyToId(params, {
+        channel: "feishu",
+        toolContext,
+        matchesToolContextTarget: feishuPlugin?.threading?.matchesToolContextTarget,
+      });
+
+    it.each([
+      "b6a9fb30-6bc6-4000-8000-000000000001",
+      "card-action-c-fixture",
+      "queued-event:fixture",
+    ])("does not inherit a non-platform trigger %s", async (id) => {
+      const context = await threading(id);
+      const params: Record<string, unknown> = { target: "chat:oc_fixture", message: "hello" };
+      expect(context.currentMessageId).toBeUndefined();
+      expect(resolve(params, context)).toBeUndefined();
+      expect(params).not.toHaveProperty("replyTo");
+    });
+    it("preserves a native inbound message target", async () => {
+      const context = await threading("om_fixture");
+      const params: Record<string, unknown> = { target: "chat:oc_fixture", message: "hello" };
+      expect(resolve(params, context)).toMatchObject({
+        replyToId: "om_fixture",
+        source: "implicit",
+      });
+      expect(params.replyTo).toBe("om_fixture");
+    });
+    it("preserves an explicit native reply over a synthetic trigger", async () => {
+      const context = await threading("b6a9fb30-6bc6-4000-8000-000000000001");
+      const params: Record<string, unknown> = { target: "chat:oc_fixture", replyTo: "om_explicit" };
+      expect(resolve(params, context)).toEqual({
+        replyToId: "om_explicit",
+        source: "explicit",
+      });
+      expect(params.replyTo).toBe("om_explicit");
+    });
+    it("does not inherit a reply without a trigger", async () => {
+      const context = await threading(undefined);
+      const params: Record<string, unknown> = { target: "chat:oc_fixture" };
+      expect(resolve(params, context)).toBeUndefined();
+      expect(params).not.toHaveProperty("replyTo");
+    });
+    it("keeps the caller's top-level opt-out", async () => {
+      const context = await threading("om_fixture");
+      const params: Record<string, unknown> = { target: "chat:oc_fixture", topLevel: true };
+      expect(resolve(params, context)).toBeUndefined();
+      expect(params).not.toHaveProperty("replyTo");
+    });
   });
 
   it("uses telegram plugin threading context for native commands", () => {
