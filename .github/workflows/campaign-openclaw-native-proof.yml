@@ -77,6 +77,13 @@ jobs:
           test "$(pnpm --version)" = "12.5.1"
           node -e 'const v=process.versions.node.split(".").map(Number);if(v[0]!==24||v[1]<16)process.exit(1)'
           sha256sum package.json pnpm-lock.yaml pnpm-workspace.yaml > "$RUNNER_TEMP/native-proof/dependency-hashes.txt"
+      - name: Install and record required ripgrep runner prerequisite
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y ripgrep
+          command -v rg | tee "$RUNNER_TEMP/native-proof/rg-path.txt"
+          rg --version | tee "$RUNNER_TEMP/native-proof/rg-version.txt"
       - name: Require current native formatting and changed checks
         run: |
           set -euo pipefail
